@@ -4,6 +4,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <cassert>
 
 struct SharedData {
     bool ready;
@@ -11,21 +12,32 @@ struct SharedData {
     int data;
 };
 
+void readData(SharedData* shared_data) {
+    if (shared_data->ready) {
+        std::cout << "Reader received data: " << shared_data->data << std::endl;
+        shared_data->ready = false; 
+    }
+}
+
+void testReadData() {
+    SharedData data = {true, false, 42};
+    readData(&data);
+    assert(data.ready == false);
+    std::cout << "Test passed!" << std::endl;
+}
+
 int main() {
-    int shmid = shmget(123, sizeof(SharedData), 0666); // Создание сегмента общей памяти
-    SharedData* shared_data = (SharedData*)shmat(shmid, nullptr, 0); // Присоединение сегмента общей памяти
+    testReadData();
+    int shmid = shmget(123, sizeof(SharedData), 0666); 
+    SharedData* shared_data = (SharedData*)shmat(shmid, nullptr, 0); 
 
     shared_data->reader_started = true;
 
     while (true) {
-        if (shared_data->ready) {
-            std::cout << "Reader received data: " << shared_data->data << std::endl;
-            shared_data->ready = false; // Сброс флага после чтения данных
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Небольшая задержка
+        readData(shared_data);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
     }
 
-    shmdt(shared_data); // Отключение сегмента общей памяти
-
+    shmdt(shared_data); 
     return 0;
 }
